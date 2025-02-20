@@ -11,6 +11,7 @@ from vllm.sequence import ExecuteModelRequest
 from vllm.spec_decode.interfaces import SpeculativeProposals
 from vllm.spec_decode.proposer_worker_base import NonLLMProposerWorkerBase
 from vllm.spec_decode.top1_proposer import Top1Proposer
+from vllm.platforms import current_platform
 
 
 class _DummyModel(nn.Module):
@@ -29,7 +30,7 @@ class NGramWorker(NonLLMProposerWorkerBase):
         # Get local_rank/vocab_size from kwargs attribute
         self.local_rank = kwargs["local_rank"]
         self.vocab_size = kwargs["vllm_config"].model_config.get_vocab_size()
-        self.device_type = kwargs.get("device_type", "cuda")
+        self.device_type = kwargs.get("device_type", f"{current_platform.device_type}")
 
         # Lazy initialization list.
         self._proposer: Top1Proposer
