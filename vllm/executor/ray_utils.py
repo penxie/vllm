@@ -35,7 +35,7 @@ try:
 
     class RayWorkerWrapper(WorkerWrapperBase):
         """Ray wrapper for vllm.worker.Worker, allowing Worker to be
-        lazliy initialized after Ray sets CUDA_VISIBLE_DEVICES."""
+        lazily initialized after Ray sets CUDA_VISIBLE_DEVICES."""
 
         def __init__(self, *args, **kwargs) -> None:
             super().__init__(*args, **kwargs)
@@ -112,13 +112,22 @@ try:
                 torch.cuda.set_device(self.worker.device)
                 self.compiled_dag_cuda_device_set = True
 
-        def execute_model(
+        def execute_model_ray(
             self,
             scheduler_output: "SchedulerOutput",
         ) -> "ModelRunnerOutput":
+            # this method is used to compile ray CG,
+            # and it needs a special logic of self.setup_device_if_necessary()
             self.setup_device_if_necessary()
             assert self.worker is not None, "Worker is not initialized"
-            output = self.worker.model_runner.execute_model(scheduler_output)
+            if isinstance(scheduler_output, tuple):
+                scheduler_output, intermediate_tensors = scheduler_output
+            else:
+                scheduler_output, intermediate_tensors = scheduler_output, None
+            output = self.worker.model_runner.execute_model(
+                scheduler_output, intermediate_tensors)
+            if isinstance(output, IntermediateTensors):
+                output = scheduler_output, output
             return output
 
         def override_env_vars(self, vars: Dict[str, str]):
